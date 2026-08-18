@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { getCompletions, getHabits } from "../db/database";
-import { calculateCompletionRate, getTotalCompletions } from "../utils/Statistics";
+import { calculateCompletionRate, getTotalCompletions } from "../utils/statistics";
 import { formatDate, getTodayDate } from "../utils/dates";
 import { getExpectedCompletions, getFrequencyLabel, getWeekStart } from "../utils/frequency";
 import { getCompletionDates } from "../utils/completions";
