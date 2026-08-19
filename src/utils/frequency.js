@@ -71,6 +71,12 @@ export function getWeekStart(dateString) {
   return `${resultYear}-${resultMonth}-${resultDay}`;
 }
 
+function getMondayPosition(date) {
+  const dayOfWeek = date.getDay();
+
+  return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+}
+
 export function getDateOffset(
   dateString,
   offset,
@@ -176,10 +182,48 @@ export function getExpectedCompletions(
   );
 
   if (frequency.type === "weekly") {
-    const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
     const target = frequency.target || 1;
 
-    return Math.floor(days / 7) * target + Math.min(days % 7, target);
+    // Monday-based occurrence model: at most `target` expected completions
+    // per week. A not-yet-finished partial week contributes only its elapsed
+    // portion (capped at `target`), so the current week never assumes the
+    // full target was already expected. `pos` is the 0-based index of the
+    // day within its Monday-start week (Mon=0 … Sun=6).
+    const toDateParts = (dateString) => {
+      const [year, month, day] = dateString.split("-").map(Number);
+      return { year, month, day, date: new Date(year, month - 1, day) };
+    };
+
+    const toMondayStart = (dateString) => {
+      const { year, month, day, date } = toDateParts(dateString);
+      const offset = getMondayPosition(date); // 0 for Monday … 6 for Sunday
+      return new Date(year, month - 1, day - offset);
+    };
+
+    const startMonday = toMondayStart(effectiveStart);
+    const endMonday = toMondayStart(endDate);
+
+    const startPos = getMondayPosition(toDateParts(effectiveStart).date);
+    const endPos = getMondayPosition(toDateParts(endDate).date);
+
+    if (startMonday.getTime() === endMonday.getTime()) {
+      // Entire range falls inside one Monday-based week.
+      return Math.min(endPos - startPos + 1, target);
+    }
+
+    // Crosses one or more week boundaries: partial start week + full weeks
+    // in between + partial end week, each capped at `target`.
+    const totalDays = Math.round(
+      (toDateParts(endDate).date - toDateParts(effectiveStart).date) /
+        (1000 * 60 * 60 * 24),
+    );
+    const fullWeeks = Math.floor((totalDays - (endPos + (6 - startPos))) / 7);
+
+    return (
+      Math.min(6 - startPos + 1, target) +
+      fullWeeks * target +
+      Math.min(endPos + 1, target)
+    );
   }
 
   let count = 0;

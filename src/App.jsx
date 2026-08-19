@@ -72,8 +72,14 @@ function App() {
       {/* Main */}
       <main className="min-h-screen md:ml-64">
         {/* Top Bar */}
-        <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 md:h-20 md:px-8">
-          <h2 className="text-lg font-semibold">{activePage}</h2>
+        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 md:h-16 md:px-8">
+          <span className="shrink-0 text-base font-bold tracking-tight">
+            HabitFlow
+          </span>
+
+          <h2 className="truncate text-sm font-medium text-gray-500">
+            {activePage}
+          </h2>
 
           <div className="flex items-center gap-3">
             <span
@@ -121,7 +127,7 @@ function App() {
 
         {/* Page Content */}
         <section className="p-4 sm:p-6 md:p-8">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-7xl">
             {activePage === "Today" && (
               <Today openAddRequest={addHabitRequest} />
             )}

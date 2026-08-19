@@ -113,12 +113,12 @@ function Calendar() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-medium text-gray-500">Your history</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Calendar</h1>
-        <p className="mt-2 text-gray-500">Look back at your consistency.</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Your history</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">Calendar</h1>
+        <p className="mt-2 text-sm text-gray-500">Look back at your consistency.</p>
       </div>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6" aria-label="Habit history calendar">
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Habit history calendar">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold sm:text-xl">{monthName} {year}</h2>
           <div className="flex items-center gap-2">
@@ -161,6 +161,7 @@ function Calendar() {
             const date = formatCalendarDate(year, month, day);
             const summary = getDaySummary(date);
             const isSelected = selectedDate === date;
+            const isToday = date === todayDate;
             const formattedDate = new Intl.DateTimeFormat(undefined, {
               month: "long",
               day: "numeric",
@@ -171,6 +172,8 @@ function Calendar() {
               : summary.status === "none"
                 ? "nothing scheduled"
                 : `${summary.rate} percent complete`;
+            const fillClass = getDayIndicatorClass(summary);
+            const lightText = fillClass === "bg-gray-500" || fillClass === "bg-gray-700" || fillClass === "bg-gray-900";
 
             return (
               <button
@@ -179,12 +182,16 @@ function Calendar() {
                 onClick={() => setSelectedDate(date)}
                 aria-label={`${formattedDate} — ${statusLabel}`}
                 aria-pressed={isSelected}
-                className={`flex aspect-square flex-col items-center justify-center rounded-xl transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900 ${
-                  isSelected ? "ring-2 ring-gray-900 ring-offset-2" : "hover:bg-gray-100"
-                }`}
+                className={`flex aspect-square flex-col items-center justify-center rounded-xl border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900 ${
+                  isSelected
+                    ? "border-gray-900 ring-2 ring-gray-900 ring-offset-2"
+                    : "border-transparent hover:border-gray-200"
+                } ${isToday ? "ring-1 ring-inset ring-gray-900/15" : ""} ${fillClass} ${lightText ? "text-white" : ""}`}
               >
-                <span className="text-xs font-medium sm:text-sm">{day}</span>
-                <span className={`mt-1 h-2 w-2 rounded-full ${getDayIndicatorClass(summary)}`} />
+                <span className="text-xs font-semibold tabular-nums sm:text-sm">{day}</span>
+                {summary.status !== "future" && (
+                  <span className={`mt-1 h-1.5 w-1.5 rounded-full ${lightText ? "bg-white/80" : "bg-gray-400"}`} />
+                )}
               </button>
             );
           })}
@@ -199,7 +206,7 @@ function Calendar() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6" aria-labelledby="selected-date-heading">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm" aria-labelledby="selected-date-heading">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-gray-500">Selected date</p>
@@ -227,10 +234,10 @@ function Calendar() {
               return (
                 <div
                   key={habit.id}
-                  className={`flex items-center justify-between rounded-xl p-4 ${completed ? "bg-gray-100" : "bg-gray-50"}`}
+                  className={`flex items-center justify-between gap-4 rounded-xl border border-gray-200 p-4 ${completed ? "bg-gray-50" : "bg-white"}`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="text-xl" aria-hidden="true">{habit.icon}</span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xl" aria-hidden="true">{habit.icon}</span>
                     <div className="min-w-0">
                       <p className={`truncate font-medium ${completed ? "text-gray-700" : "text-gray-900"}`}>{habit.name}</p>
                       {!habit.active && (
@@ -240,9 +247,7 @@ function Calendar() {
                   </div>
                   <span
                     aria-label={completed ? "Completed" : "Not completed"}
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                      completed ? "bg-gray-900 text-white" : "border-2 border-gray-300 text-transparent"
-                    }`}
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${completed ? "bg-gray-900 text-white" : "border-2 border-gray-300 text-transparent"}`}
                   >
                     ✓
                   </span>

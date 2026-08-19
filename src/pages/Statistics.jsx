@@ -39,7 +39,7 @@ function Statistics() {
     loadData();
   }, []);
 
-  if (isLoading) {
+      if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-sm text-gray-500">Loading statistics...</p>
@@ -112,19 +112,19 @@ function Statistics() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-medium text-gray-500">Your progress</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Statistics</h1>
-        <p className="mt-2 text-gray-500">A simple view of your consistency.</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Your progress</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">Statistics</h1>
+        <p className="mt-2 text-sm text-gray-500">A simple view of your consistency.</p>
       </div>
 
       {habits.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center shadow-sm">
           <p className="font-semibold text-gray-900">No data yet.</p>
           <p className="mt-2 text-sm text-gray-500">Add a habit and complete it to see your progress here.</p>
         </div>
       ) : (
         <>
-          <section aria-label="Consistency summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section aria-label="Consistency summary" className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard
               title="This Week"
               value={weeklySummary.expected > 0 ? `${weeklySummary.rate}%` : "No data"}
@@ -153,12 +153,12 @@ function Statistics() {
               <p className="mt-1 text-sm text-gray-500">Your completion rate for each habit&apos;s recorded history.</p>
             </div>
 
-            <div className="mt-6 space-y-5">
+            <div className="mt-6 space-y-4">
               {habitPerformance.map((habit) => (
-                <div key={habit.id}>
+                <div key={habit.id} className="rounded-xl border border-gray-200 bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="text-xl" aria-hidden="true">{habit.icon}</span>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xl" aria-hidden="true">{habit.icon}</span>
                       <div className="min-w-0">
                         <p className="truncate font-medium text-gray-900">{habit.name}</p>
                         <p className="mt-1 text-sm text-gray-500">
@@ -168,8 +168,8 @@ function Statistics() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-semibold text-gray-900">{habit.expected > 0 ? `${habit.rate}%` : "No data"}</p>
-                      <p className="mt-1 text-xs text-gray-500">{habit.completedCount} / {habit.expected}</p>
+                      <p className="font-semibold tabular-nums text-gray-900">{habit.expected > 0 ? `${habit.rate}%` : "No data"}</p>
+                      <p className="mt-1 text-xs tabular-nums text-gray-500">{habit.completedCount} / {habit.expected}</p>
                     </div>
                   </div>
 
@@ -195,10 +195,10 @@ function Statistics() {
 
 function SummaryCard({ title, value, detail }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5">
-      <p className="text-sm text-gray-500">{title}</p>
-      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
-      <p className="mt-1 truncate text-sm text-gray-500">{detail}</p>
+    <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{title}</p>
+      <p className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-gray-900">{value}</p>
+      <p className="mt-2 text-sm text-gray-500 sm:truncate">{detail}</p>
     </div>
   );
 }

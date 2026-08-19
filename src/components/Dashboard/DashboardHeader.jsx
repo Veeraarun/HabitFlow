@@ -7,10 +7,15 @@ function DashboardHeader() {
 
   return (
     <div>
-      <p className="text-sm font-medium text-gray-500">Today</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+        Today
+      </p>
+      <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">
         {formattedDate}
       </h1>
+      <p className="mt-1 text-sm text-gray-500">
+        Build better days, one habit at a time.
+      </p>
     </div>
   );
 }

@@ -69,8 +69,8 @@ function AddHabitModal({ isOpen, onClose, onAdd }) {
       },
     });
 
-resetForm();
-onClose();
+    resetForm();
+    onClose();
   };
 
   return (

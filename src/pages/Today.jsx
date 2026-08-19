@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   deleteCompletion,
   getCompletions,
@@ -241,38 +240,55 @@ function Today({ openAddRequest = 0 }) {
   }
 
   return (
-    <div className="space-y-8">
-      <DashboardHeader />
+    <>
+      {/*
+        Mobile: one column ordered Date, Progress, Streak, Habit List, Activity.
+        Desktop: two columns (~35% / ~65%) with the habit list spanning both rows
+        on the right and the activity card sitting under the streak card on the left.
+      */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[7fr_13fr] lg:gap-8">
+        {/* Left column, top: date, progress, streak */}
+        <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
+          <DashboardHeader />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <ProgressCard completed={completedCount} total={dueHabits.length} />
+          <ProgressCard completed={completedCount} total={dueHabits.length} />
 
-        <StreakCard
-          currentStreak={currentStreak}
-          longestStreak={longestStreak}
-        />
+          <StreakCard
+            currentStreak={currentStreak}
+            longestStreak={longestStreak}
+          />
+        </div>
+
+        {/* Right column: habit list dominates */}
+        <div className="flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <HabitList
+            habits={habitsWithProgress}
+            hasActiveHabits={habits.some((habit) => habit.active)}
+            onToggle={toggleHabit}
+            onEdit={(habit) => {
+              setEditingHabit(habit);
+              setIsEditModalOpen(true);
+            }}
+            onArchive={archiveHabit}
+          />
+
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+          >
+            <span className="text-base leading-none" aria-hidden="true">
+              +
+            </span>
+            Add Habit
+          </button>
+        </div>
+
+        {/* Left column, bottom on desktop / last on mobile: activity */}
+        <div className="lg:col-start-1 lg:row-start-2 lg:self-start">
+          <ActivityPreview habits={habits} completions={completions} />
+        </div>
       </div>
-
-      <HabitList
-        habits={habitsWithProgress}
-        hasActiveHabits={habits.some((habit) => habit.active)}
-        onToggle={toggleHabit}
-        onEdit={(habit) => {
-          setEditingHabit(habit);
-          setIsEditModalOpen(true);
-        }}
-        onArchive={archiveHabit}
-      />
-
-      <button
-        type="button"
-        onClick={() => setIsAddModalOpen(true)}
-        className="w-full rounded-2xl border-2 border-dashed border-gray-300 py-4 text-sm font-medium text-gray-500 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-      >
-        + Add Habit
-      </button>
-
-      <ActivityPreview habits={habits} completions={completions} />
 
       <AddHabitModal
         isOpen={isAddModalOpen}
@@ -289,7 +305,7 @@ function Today({ openAddRequest = 0 }) {
         }}
         onSave={saveEditedHabit}
       />
-    </div>
+    </>
   );
 }
 

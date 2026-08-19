@@ -62,23 +62,23 @@ function Settings() {
 
       {/* Header */}
       <div>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Customize your experience
         </p>
 
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">
           Settings
         </h1>
 
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           Manage how HabitFlow works for you.
         </p>
       </div>
 
       {/* Appearance */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-gray-900">
             Appearance
           </h2>
 
@@ -110,10 +110,10 @@ function Settings() {
                   option.value,
                 )
               }
-              className={`rounded-xl border p-4 text-left font-medium transition ${
+              className={`flex items-center justify-center rounded-xl border p-4 text-center text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900 ${
                 theme === option.value
                   ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 hover:bg-gray-50"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
               {option.label}
@@ -123,9 +123,9 @@ function Settings() {
       </section>
 
       {/* Notifications */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-gray-900">
             Notifications
           </h2>
 
@@ -165,25 +165,27 @@ function Settings() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={async () => {
-                setNotificationError("");
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  setNotificationError("");
 
-                try {
-                  await showTestNotification();
-                } catch (error) {
-                  setNotificationError(
-                    error instanceof Error
-                      ? error.message
-                      : "Failed to send test notification.",
-                  );
-                }
-              }}
-              className="mt-4 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-            >
-              Send test notification
-            </button>
+                  try {
+                    await showTestNotification();
+                  } catch (error) {
+                    setNotificationError(
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to send test notification.",
+                    );
+                  }
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+              >
+                Send test notification
+              </button>
+            </div>
           </div>
         ) : notificationPermission ===
           "denied" ? (
@@ -224,7 +226,7 @@ function Settings() {
 
         {notificationError && (
           <p
-            className="mt-4 text-sm text-gray-600"
+            className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700"
             role="alert"
           >
             {notificationError}
@@ -233,9 +235,9 @@ function Settings() {
       </section>
 
       {/* Habit Behavior */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-gray-900">
             Habit Behavior
           </h2>
 
@@ -244,9 +246,9 @@ function Settings() {
           </p>
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-6">
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-medium">
+            <p className="font-medium text-gray-900">
               Grace days
             </p>
 
@@ -263,7 +265,7 @@ function Settings() {
                 Number(e.target.value),
               )
             }
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium outline-none focus:border-gray-900"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 outline-none focus:border-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
           >
             <option value={0}>
               0 days
@@ -276,9 +278,9 @@ function Settings() {
       </section>
 
       {/* Data */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-gray-900">
             Data
           </h2>
 
@@ -290,14 +292,14 @@ function Settings() {
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
           >
             Export Data
           </button>
 
           <button
             type="button"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
           >
             Import Data
           </button>
