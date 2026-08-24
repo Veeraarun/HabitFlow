@@ -2,24 +2,19 @@
 
 A minimal, local-first habit tracker built with React and Vite.
 
-HabitFlow helps you build consistent habits with flexible schedules, completion history, streaks, statistics, reminders, and offline support.
+Track daily habits, monitor progress, build streaks, and stay consistent with HabitFlow.
 
 ## Features
 
-- Create, edit, and archive habits
-- Daily habits
-- Weekly target habits such as 3 times per week
-- Specific-day habits such as Monday / Wednesday / Friday
-- Completion history
-- Frequency-aware streaks
-- Weekly and monthly statistics
-- Calendar-based history
-- Habit reminders
-- Browser notifications
-- Offline support
-- Installable PWA
-- Local-first data storage using IndexedDB
-- Persistent application settings
+- Daily habit tracking
+- Weekly progress tracking
+- Monthly calendar view
+- Monthly completion graph
+- Habit streak tracking
+- Statistics and performance insights
+- Reminder notifications
+- Offline/PWA support
+- Local data persistence using IndexedDB
 
 ## Tech Stack
 
@@ -35,9 +30,9 @@ HabitFlow helps you build consistent habits with flexible schedules, completion 
 
 HabitFlow is local-first.
 
-Habit data, completion history, reminder records, and settings are stored locally in the browser using IndexedDB and localStorage.
+Habit data, completion history, and reminder records are stored locally in the browser using IndexedDB.
 
-The application does not currently require an account or backend.
+The application does not require an account or backend.
 
 ## Running Locally
 
@@ -45,3 +40,35 @@ Clone the repository and install dependencies:
 
 ```bash
 npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+## Production Build
+
+Build for production:
+
+```bash
+npm run build
+```
+
+Preview the production build:
+
+```bash
+npm run preview
+```
+
+## Project Architecture
+
+- **React Context / HabitsProvider**: Shared state management for habits and completions
+- **IndexedDB**: Persistent local storage for all user data
+- **Views**: Daily, Weekly, Monthly, and Statistics views for tracking progress
+- **Reminder System**: Scheduled notifications for habit reminders via service worker
+
+## Screenshots / Live Demo
+
+*Screenshots and live demo link will be added after deployment.*

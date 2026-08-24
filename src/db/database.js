@@ -126,43 +126,14 @@ export async function saveHabit(habit) {
   });
 }
 
-export async function saveHabits(habits) {
-  const db = await openDatabase();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(
-      HABITS_STORE,
-      "readwrite"
-    );
-
-    const store = transaction.objectStore(HABITS_STORE);
-
-    habits.forEach((habit) => {
-      store.put(habit);
-    });
-
-    transaction.oncomplete = () => {
-      resolve();
-    };
-
-    transaction.onerror = () => {
-      reject(transaction.error);
-    };
-  });
-}
-
 export async function deleteHabit(id) {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(
-      HABITS_STORE,
+      [HABITS_STORE, COMPLETIONS_STORE, REMINDERS_STORE],
       "readwrite"
     );
-
-    const store = transaction.objectStore(HABITS_STORE);
-
-    store.delete(id);
 
     transaction.oncomplete = () => {
       resolve();
@@ -170,6 +141,35 @@ export async function deleteHabit(id) {
 
     transaction.onerror = () => {
       reject(transaction.error);
+    };
+
+    const habitsStore = transaction.objectStore(HABITS_STORE);
+    habitsStore.delete(id);
+
+    const completionsStore = transaction.objectStore(COMPLETIONS_STORE);
+    const completionsCursor = completionsStore
+      .index("habitId")
+      .openCursor(IDBKeyRange.only(id));
+
+    completionsCursor.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+
+    const remindersStore = transaction.objectStore(REMINDERS_STORE);
+    const remindersCursor = remindersStore.openCursor();
+
+    remindersCursor.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (cursor.value.habitId === id) {
+          cursor.delete();
+        }
+        cursor.continue();
+      }
     };
   });
 }
@@ -213,36 +213,6 @@ export async function getCompletions() {
     );
 
     const request = store.getAll();
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onerror = () => {
-      reject(request.error);
-    };
-  });
-}
-
-export async function getCompletion(
-  habitId,
-  date
-) {
-  const db = await openDatabase();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(
-      COMPLETIONS_STORE,
-      "readonly"
-    );
-
-    const store = transaction.objectStore(
-      COMPLETIONS_STORE
-    );
-
-    const id = `${habitId}-${date}`;
-
-    const request = store.get(id);
 
     request.onsuccess = () => {
       resolve(request.result);

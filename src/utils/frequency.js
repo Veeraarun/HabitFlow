@@ -77,89 +77,6 @@ function getMondayPosition(date) {
   return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 }
 
-export function getDateOffset(
-  dateString,
-  offset,
-) {
-  const [year, month, day] =
-    dateString.split("-").map(Number);
-
-  const date = new Date(
-    year,
-    month - 1,
-    day,
-  );
-
-  date.setDate(
-    date.getDate() + offset,
-  );
-
-  const resultYear =
-    date.getFullYear();
-
-  const resultMonth = String(
-    date.getMonth() + 1,
-  ).padStart(2, "0");
-
-  const resultDay = String(
-    date.getDate(),
-  ).padStart(2, "0");
-
-  return `${resultYear}-${resultMonth}-${resultDay}`;
-}
-
-export function getWeeklyCompletionCount(
-  habitId,
-  completions,
-  dateString,
-) {
-  const weekStart =
-    getWeekStart(dateString);
-
-  const weekDates = Array.from(
-    { length: 7 },
-    (_, index) =>
-      getDateOffset(
-        weekStart,
-        index,
-      ),
-  );
-
-  return completions.filter(
-    (completion) =>
-      completion.habitId === habitId &&
-      completion.completed === true &&
-      weekDates.includes(
-        completion.date,
-      ),
-  ).length;
-}
-
-export function isWeeklyHabitComplete(
-  habit,
-  completions,
-  dateString,
-) {
-  if (
-    habit.frequency?.type !==
-    "weekly"
-  ) {
-    return false;
-  }
-
-  const target =
-    habit.frequency.target || 1;
-
-  const completed =
-    getWeeklyCompletionCount(
-      habit.id,
-      completions,
-      dateString,
-    );
-
-  return completed >= target;
-}
-
 export function getExpectedCompletions(
   habit,
   startDate,
@@ -184,11 +101,6 @@ export function getExpectedCompletions(
   if (frequency.type === "weekly") {
     const target = frequency.target || 1;
 
-    // Monday-based occurrence model: at most `target` expected completions
-    // per week. A not-yet-finished partial week contributes only its elapsed
-    // portion (capped at `target`), so the current week never assumes the
-    // full target was already expected. `pos` is the 0-based index of the
-    // day within its Monday-start week (Mon=0 … Sun=6).
     const toDateParts = (dateString) => {
       const [year, month, day] = dateString.split("-").map(Number);
       return { year, month, day, date: new Date(year, month - 1, day) };
@@ -196,7 +108,7 @@ export function getExpectedCompletions(
 
     const toMondayStart = (dateString) => {
       const { year, month, day, date } = toDateParts(dateString);
-      const offset = getMondayPosition(date); // 0 for Monday … 6 for Sunday
+      const offset = getMondayPosition(date);
       return new Date(year, month - 1, day - offset);
     };
 
@@ -207,12 +119,9 @@ export function getExpectedCompletions(
     const endPos = getMondayPosition(toDateParts(endDate).date);
 
     if (startMonday.getTime() === endMonday.getTime()) {
-      // Entire range falls inside one Monday-based week.
       return Math.min(endPos - startPos + 1, target);
     }
 
-    // Crosses one or more week boundaries: partial start week + full weeks
-    // in between + partial end week, each capped at `target`.
     const totalDays = Math.round(
       (toDateParts(endDate).date - toDateParts(effectiveStart).date) /
         (1000 * 60 * 60 * 24),
@@ -259,20 +168,4 @@ export function getExpectedCompletions(
   }
 
   return count;
-}
-
-export function getFrequencyLabel(habit) {
-  const frequency = habit.frequency || { type: "daily" };
-
-  if (frequency.type === "weekly") {
-    const target = frequency.target || 1;
-    return `${target} ${target === 1 ? "time" : "times"} this week`;
-  }
-
-  if (frequency.type === "specific_days") {
-    const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return (frequency.days || []).map((day) => dayLabels[day]).join(" · ") || "Specific days";
-  }
-
-  return "Every day";
 }

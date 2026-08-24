@@ -7,13 +7,6 @@ import {
   showTestNotification,
 } from "../utils/notifications";
 
-import {
-  getSettings,
-  saveSettings,
-} from "../utils/settings";
-
-import { applyTheme } from "../utils/theme";
-
 function Settings() {
   const [notificationPermission, setNotificationPermission] =
     useState("default");
@@ -21,41 +14,11 @@ function Settings() {
   const [notificationError, setNotificationError] =
     useState("");
 
-  const [theme, setTheme] = useState("system");
-  const [graceDays, setGraceDays] = useState(1);
-
   useEffect(() => {
-    const settings = getSettings();
-
-    setTheme(settings.theme);
-    setGraceDays(settings.graceDays);
-
-    applyTheme(settings.theme);
-
     setNotificationPermission(
       getNotificationPermission(),
     );
   }, []);
-
-  const handleThemeChange = (value) => {
-    setTheme(value);
-
-    applyTheme(value);
-
-    saveSettings({
-      theme: value,
-      graceDays,
-    });
-  };
-
-  const handleGraceDaysChange = (value) => {
-    setGraceDays(value);
-
-    saveSettings({
-      theme,
-      graceDays: value,
-    });
-  };
 
   return (
     <div className="space-y-8">
@@ -74,53 +37,6 @@ function Settings() {
           Manage how HabitFlow works for you.
         </p>
       </div>
-
-      {/* Appearance */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            Appearance
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Choose how HabitFlow looks.
-          </p>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {[
-            {
-              value: "light",
-              label: "☀️ Light",
-            },
-            {
-              value: "dark",
-              label: "🌙 Dark",
-            },
-            {
-              value: "system",
-              label: "⚙️ System",
-            },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() =>
-                handleThemeChange(
-                  option.value,
-                )
-              }
-              className={`flex items-center justify-center rounded-xl border p-4 text-center text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900 ${
-                theme === option.value
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </section>
 
       {/* Notifications */}
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -232,78 +148,6 @@ function Settings() {
             {notificationError}
           </p>
         )}
-      </section>
-
-      {/* Habit Behavior */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            Habit Behavior
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Configure how streaks handle missed days.
-          </p>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium text-gray-900">
-              Grace days
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Missed days that won't immediately break
-              your streak.
-            </p>
-          </div>
-
-          <select
-            value={graceDays}
-            onChange={(e) =>
-              handleGraceDaysChange(
-                Number(e.target.value),
-              )
-            }
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 outline-none focus:border-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-          >
-            <option value={0}>
-              0 days
-            </option>
-            <option value={1}>
-              1 day
-            </option>
-          </select>
-        </div>
-      </section>
-
-      {/* Data */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            Data
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Manage your habit data.
-          </p>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-          >
-            Export Data
-          </button>
-
-          <button
-            type="button"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-          >
-            Import Data
-          </button>
-        </div>
       </section>
 
     </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import Today from "./pages/Today";
+import Weekly from "./pages/Weekly";
+import Monthly from "./pages/Monthly";
 import Statistics from "./pages/Statistics";
-import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { HabitsProvider } from "./context/HabitsProvider";
 import {
   startReminderScheduler,
   stopReminderScheduler,
@@ -24,13 +26,15 @@ function App() {
 
   const navigation = [
     { name: "Today", icon: "🏠" },
+    { name: "Weekly", icon: "📅" },
+    { name: "Monthly", icon: "📆" },
     { name: "Statistics", icon: "📊" },
-    { name: "Calendar", icon: "📅" },
     { name: "Settings", icon: "⚙️" },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <HabitsProvider>
+      <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-gray-200 bg-white p-6 md:block">
         <div className="mb-10">
@@ -93,14 +97,6 @@ function App() {
             >
               {isOnline ? "Online" : "Offline"}
             </span>
-
-            <button
-              type="button"
-              className="rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-              aria-label="Toggle theme"
-            >
-              ☀️
-            </button>
           </div>
         </header>
 
@@ -132,15 +128,18 @@ function App() {
               <Today openAddRequest={addHabitRequest} />
             )}
 
-            {activePage === "Statistics" && <Statistics />}
+            {activePage === "Weekly" && <Weekly />}
 
-            {activePage === "Calendar" && <Calendar />}
+            {activePage === "Monthly" && <Monthly />}
+
+            {activePage === "Statistics" && <Statistics />}
 
             {activePage === "Settings" && <Settings />}
           </div>
         </section>
       </main>
-    </div>
+      </div>
+    </HabitsProvider>
   );
 }
 

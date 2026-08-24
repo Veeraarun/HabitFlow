@@ -1,21 +1,18 @@
 import { isHabitDueOnDate } from "./frequency";
-import { isHabitCompletedOnDate } from "./completions";
 
 export function getExpectedHabitsForDate(
   habits,
   date,
 ) {
   return habits.filter((habit) => {
+    if (!habit.active) {
+      return false;
+    }
+
     const createdDate =
       habit.createdAt?.slice(0, 10);
 
     if (createdDate && createdDate > date) {
-      return false;
-    }
-
-    // Weekly targets are measured across the week, not as a required task on
-    // each calendar day. Calendar adds their recorded completions separately.
-    if (habit.frequency?.type === "weekly") {
       return false;
     }
 
@@ -62,15 +59,4 @@ export function formatCalendarDate(
   ).padStart(2, "0");
 
   return `${year}-${monthString}-${dayString}`;
-}
-
-export function getHistoricalHabitsForDate(habits, date, completions) {
-  const scheduledHabits = getExpectedHabitsForDate(habits, date);
-  const completedWeeklyHabits = habits.filter(
-    (habit) =>
-      habit.frequency?.type === "weekly" &&
-      isHabitCompletedOnDate(habit.id, date, completions),
-  );
-
-  return [...scheduledHabits, ...completedWeeklyHabits];
 }

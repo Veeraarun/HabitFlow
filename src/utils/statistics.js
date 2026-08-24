@@ -1,3 +1,5 @@
+import { getExpectedCompletions } from "./frequency";
+
 export function calculateCompletionRate(completed, total) {
   if (total === 0) {
     return 0;
@@ -31,4 +33,29 @@ export function getCompletionsForDate(
       completion.date === date &&
       completion.completed !== false
   );
+}
+
+export function getRangeSummary(habits, completions, startDate, endDate) {
+  const expected = habits.reduce(
+    (total, habit) => total + getExpectedCompletions(habit, startDate, endDate),
+    0
+  );
+
+  const habitById = new Map(habits.map((habit) => [habit.id, habit]));
+  const completed = completions.filter((completion) => {
+    const habit = habitById.get(completion.habitId);
+
+    return (
+      completion.completed === true &&
+      habit &&
+      completion.date >= startDate &&
+      completion.date <= endDate
+    );
+  }).length;
+
+  return {
+    completed,
+    expected,
+    rate: calculateCompletionRate(completed, expected),
+  };
 }

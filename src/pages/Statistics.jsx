@@ -1,45 +1,15 @@
-import { useEffect, useState } from "react";
+import { useHabits } from "../hooks/useHabits";
 
-import { getCompletions, getHabits } from "../db/database";
-import { calculateCompletionRate, getTotalCompletions } from "../utils/statistics";
+import { getRangeSummary, getTotalCompletions } from "../utils/statistics";
 import { formatDate, getTodayDate } from "../utils/dates";
-import { getExpectedCompletions, getFrequencyLabel, getWeekStart } from "../utils/frequency";
+import { getWeekStart } from "../utils/frequency";
 import { getCompletionDates } from "../utils/completions";
 import { calculateCurrentStreak, calculateLongestStreak } from "../utils/streaks";
 
-function getLatestCompletionDate(habitId, completions) {
-  return completions
-    .filter((completion) => completion.habitId === habitId && completion.completed === true)
-    .map((completion) => completion.date)
-    .sort()
-    .at(-1);
-}
-
 function Statistics() {
-  const [habits, setHabits] = useState([]);
-  const [completions, setCompletions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { habits, completions, isLoading } = useHabits();
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [storedHabits, storedCompletions] = await Promise.all([
-          getHabits(),
-          getCompletions(),
-        ]);
-        setHabits(storedHabits);
-        setCompletions(storedCompletions);
-      } catch (error) {
-        console.error("Failed to load statistics:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-      if (isLoading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-sm text-gray-500">Loading statistics...</p>
@@ -52,27 +22,11 @@ function Statistics() {
   const monthStart = formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const activeHabits = habits.filter((habit) => habit.active);
 
-  const getRangeSummary = (relevantHabits, startDate, endDate) => {
-    const expected = relevantHabits.reduce(
-      (total, habit) => total + getExpectedCompletions(habit, startDate, endDate),
-      0,
-    );
-    const habitById = new Map(relevantHabits.map((habit) => [habit.id, habit]));
-    const completed = completions.filter((completion) => {
-      const habit = habitById.get(completion.habitId);
-      return (
-        completion.completed === true &&
-        habit &&
-        completion.date >= startDate &&
-        completion.date <= endDate
-      );
-    }).length;
+  const getRangeSummaryLocal = (relevantHabits, startDate, endDate) =>
+    getRangeSummary(relevantHabits, completions, startDate, endDate);
 
-    return { completed, expected, rate: calculateCompletionRate(completed, expected) };
-  };
-
-  const weeklySummary = getRangeSummary(activeHabits, weekStart, today);
-  const monthlySummary = getRangeSummary(activeHabits, monthStart, today);
+  const weeklySummary = getRangeSummaryLocal(activeHabits, weekStart, today);
+  const monthlySummary = getRangeSummaryLocal(activeHabits, monthStart, today);
 
   const getStreakSummary = (relevantHabits, calculation) => {
     const candidates = relevantHabits.map((habit) => ({
@@ -86,26 +40,22 @@ function Statistics() {
 
     return {
       ...best,
-      unit: best.habit?.frequency?.type === "weekly" ? "weeks" : "days",
+      unit: "days",
     };
   };
 
   const currentStreak = getStreakSummary(activeHabits, calculateCurrentStreak);
-  const bestStreak = getStreakSummary(habits, calculateLongestStreak);
+  const bestStreak = getStreakSummary(activeHabits, calculateLongestStreak);
 
-  const habitPerformance = habits.map((habit) => {
+  const habitPerformance = activeHabits.map((habit) => {
     const startDate = habit.createdAt?.slice(0, 10) || today;
-    // No archive timestamp exists. Ending archived-habit performance at its last
-    // recorded completion preserves history without counting unknown post-archive days.
-    const endDate = habit.active ? today : getLatestCompletionDate(habit.id, completions) || startDate;
-    const summary = getRangeSummary([habit], startDate, endDate);
+    const summary = getRangeSummary([habit], startDate, today);
 
     return {
       ...habit,
       completedCount: summary.completed,
       expected: summary.expected,
       rate: summary.rate,
-      frequencyLabel: getFrequencyLabel(habit),
     };
   }).sort((first, second) => second.rate - first.rate || second.completedCount - first.completedCount);
 
@@ -113,7 +63,7 @@ function Statistics() {
     <div className="space-y-8">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Your progress</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">Statistics</h1>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">Statistics</h1>
         <p className="mt-2 text-sm text-gray-500">A simple view of your consistency.</p>
       </div>
 
@@ -153,7 +103,7 @@ function Statistics() {
               <p className="mt-1 text-sm text-gray-500">Your completion rate for each habit&apos;s recorded history.</p>
             </div>
 
-            <div className="mt-6 space-y-4">
+             <div className="mt-6 space-y-4">
               {habitPerformance.map((habit) => (
                 <div key={habit.id} className="rounded-xl border border-gray-200 bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
@@ -162,8 +112,7 @@ function Statistics() {
                       <div className="min-w-0">
                         <p className="truncate font-medium text-gray-900">{habit.name}</p>
                         <p className="mt-1 text-sm text-gray-500">
-                          {habit.frequencyLabel}
-                          {!habit.active && " · Archived"}
+                          Daily habit
                         </p>
                       </div>
                     </div>
@@ -177,8 +126,8 @@ function Statistics() {
                     className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"
                     role="progressbar"
                     aria-label={`${habit.name} completion rate`}
-                    aria-valuemin="0"
-                    aria-valuemax="100"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
                     aria-valuenow={habit.expected > 0 ? habit.rate : 0}
                   >
                     <div className="h-full rounded-full bg-gray-900" style={{ width: `${habit.expected > 0 ? habit.rate : 0}%` }} />

@@ -1,4 +1,4 @@
-import { isHabitDueOnDate, isWeeklyHabitComplete } from "./frequency.js";
+import { isHabitDueOnDate } from "./frequency.js";
 import { isHabitCompletedOnDate } from "./completions.js";
 
 export function isValidReminderTime(time) {
@@ -79,17 +79,6 @@ export function getDueReminderHabits({
           habit.id,
           dateString,
           completions,
-        )
-      ) {
-        return false;
-      }
-
-      if (
-        habit.frequency?.type === "weekly" &&
-        isWeeklyHabitComplete(
-          habit,
-          completions,
-          dateString,
         )
       ) {
         return false;
