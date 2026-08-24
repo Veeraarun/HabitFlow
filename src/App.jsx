@@ -6,6 +6,7 @@ import Statistics from "./pages/Statistics";
 import Settings from "./pages/Settings";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { HabitsProvider } from "./context/HabitsProvider";
+import { AuthProvider } from "./context/AuthProvider";
 import {
   startReminderScheduler,
   stopReminderScheduler,
@@ -33,8 +34,9 @@ function App() {
   ];
 
   return (
-    <HabitsProvider>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+    <AuthProvider>
+      <HabitsProvider>
+        <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-gray-200 bg-white p-6 md:block">
         <div className="mb-10">
@@ -139,7 +141,8 @@ function App() {
         </section>
       </main>
       </div>
-    </HabitsProvider>
+      </HabitsProvider>
+    </AuthProvider>
   );
 }
 
