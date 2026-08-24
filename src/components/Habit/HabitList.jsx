@@ -1,6 +1,6 @@
 import HabitCard from "./HabitCard";
 
-function HabitList({ habits, future = false, onToggle, onDelete }) {
+function HabitList({ habits, future = false, onToggle, onEdit, onDelete }) {
   const completedCount = habits.filter((habit) => habit.isCompleted).length;
   const allComplete = habits.length > 0 && completedCount === habits.length;
 
@@ -49,6 +49,7 @@ function HabitList({ habits, future = false, onToggle, onDelete }) {
                 reminderTime={habit.reminder?.enabled ? habit.reminder.time : null}
                 disabled={future}
                 onToggle={() => onToggle(habit.id)}
+                onEdit={() => onEdit(habit)}
                 onDelete={() => onDelete(habit.id)}
               />
             ))}

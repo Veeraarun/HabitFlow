@@ -85,6 +85,12 @@ function Today({ openAddRequest = 0 }) {
     }
   }, [openAddRequest]);
 
+  useEffect(() => {
+    if (editingHabit) {
+      setIsEditModalOpen(true);
+    }
+  }, [editingHabit]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -177,6 +183,7 @@ function Today({ openAddRequest = 0 }) {
             habits={habitsWithProgress}
             future={isFuture}
             onToggle={(id) => toggleCompletion(id, selectedDate)}
+            onEdit={(habit) => setEditingHabit(habit)}
             onDelete={deleteHabitPermanent}
           />
 

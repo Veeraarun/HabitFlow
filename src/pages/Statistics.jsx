@@ -67,10 +67,10 @@ function Statistics() {
         <p className="mt-2 text-sm text-gray-500">A simple view of your consistency.</p>
       </div>
 
-      {habits.length === 0 ? (
+      {activeHabits.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center shadow-sm">
-          <p className="font-semibold text-gray-900">No data yet.</p>
-          <p className="mt-2 text-sm text-gray-500">Add a habit and complete it to see your progress here.</p>
+          <p className="font-semibold text-gray-900">No statistics yet.</p>
+          <p className="mt-2 text-sm text-gray-500">Add and complete habits to start seeing your progress.</p>
         </div>
       ) : (
         <>

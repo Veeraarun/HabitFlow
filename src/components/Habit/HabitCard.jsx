@@ -8,6 +8,7 @@ function HabitCard({
   reminderTime = null,
   disabled = false,
   onToggle,
+  onEdit,
   onDelete,
 }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -86,47 +87,58 @@ function HabitCard({
 
       {showMenu && (
         <div className="absolute right-4 top-[4.25rem] z-20 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 text-sm shadow-lg">
-          {!isConfirmingDelete ? (
-            <button
-              type="button"
-              onClick={() => {
-                setShowMenu(false);
-                setIsConfirmingDelete(true);
-              }}
-              className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none"
-            >
-              Delete
-            </button>
-          ) : (
-            <div className="px-4 py-3">
-              <p className="font-medium text-gray-900">
-                Delete this habit?
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                This will permanently remove the habit and all its history.
-              </p>
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsConfirmingDelete(false)}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    setIsConfirmingDelete(false);
-                    onDelete();
-                  }}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-                >
-                  Delete
-                </button>
-              </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowMenu(false);
+              onEdit();
+            }}
+            className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowMenu(false);
+              setIsConfirmingDelete(true);
+            }}
+            className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
+      {isConfirmingDelete && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-white/95 px-4 sm:px-5">
+          <div className="w-full">
+            <p className="font-medium text-gray-900">
+              Delete this habit?
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              This will permanently remove the habit and all its history.
+            </p>
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmingDelete(false)}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmingDelete(false);
+                  onDelete();
+                }}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+              >
+                Delete
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
