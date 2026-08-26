@@ -50,13 +50,13 @@ async function buildLocalToCloudIdMap(userId) {
 
 async function getLocalHabit(localId, userId) {
   const habits = await getHabits(userId);
-  return habits.find((h) => h.id === localId) || null;
+  return habits.find((h) => String(h.id) === String(localId)) || null;
 }
 
 async function getLocalCompletion(habitId, date, userId) {
   const completions = await getCompletions(userId);
   const id = `${habitId}-${date}`;
-  return completions.find((c) => c.id === id) || null;
+  return completions.find((c) => String(c.id) === String(id)) || null;
 }
 
 async function processCreateHabit(operation, userId, localToCloudMap) {
@@ -270,7 +270,7 @@ export function isCloudSyncActive() {
 
 function cloudHabitToLocalHabit(cloudHabit, userId) {
   return {
-    id: cloudHabit.local_id,
+    id: Number(cloudHabit.local_id),
     cloudId: cloudHabit.id,
     userId: userId,
     name: cloudHabit.name,
@@ -324,7 +324,7 @@ async function mergeHabitsFromCloud(userId, localToCloudMap) {
     let localHabit = null;
 
     if (cloudHabit.local_id) {
-      localHabit = localHabits.find((h) => h.id === cloudHabit.local_id);
+      localHabit = localHabits.find((h) => String(h.id) === String(cloudHabit.local_id));
     }
 
     if (!localHabit && cloudHabit.id) {

@@ -153,17 +153,26 @@ export function HabitsProvider({ children }) {
     const previousHabits = habits;
     const now = new Date().toISOString();
 
+    // Fetch the latest version from the database to avoid overwriting cloudId
+    const localHabits = await getHabits(user?.id);
+    const existingHabit = localHabits.find((h) => String(h.id) === String(habitData.id));
+
     setHabits((items) =>
       items.map((habit) =>
         habit.id === habitData.id
-          ? { ...habit, ...habitData, updatedAt: now }
+          ? {
+              ...habit,
+              ...habitData,
+              cloudId: existingHabit?.cloudId || habit.cloudId,
+              updatedAt: now,
+            }
           : habit,
       ),
     );
 
     try {
       const updated = {
-        ...previousHabits.find((habit) => habit.id === habitData.id),
+        ...(existingHabit || previousHabits.find((habit) => habit.id === habitData.id)),
         ...habitData,
         updatedAt: now,
       };
