@@ -238,8 +238,7 @@ async function processDeleteCompletion(operation, userId, localToCloudMap) {
       await removeSyncOperation(operation.id);
       return { success: true, skipped: true };
     }
-    await removeSyncOperation(operation.id);
-    return { success: true, skipped: true };
+    return { success: false, retryable: true, deferred: true };
   }
 
   const localCompletion = await getLocalCompletion(habitId, date, userId);
@@ -433,6 +432,19 @@ async function mergeCompletionsFromCloud(userId, localToCloudMap) {
     }
 
     const localCompletionId = `${localHabitId}-${cloudCompletion.date}`;
+
+    // If there is a pending delete operation for this completion, do not restore/update it from the cloud
+    const pendingOpsForDelete = await getPendingOperationsForEntity(
+      "completion",
+      localCompletionId
+    );
+    const hasPendingDelete = pendingOpsForDelete.some(
+      (op) => op.type === "delete_completion"
+    );
+    if (hasPendingDelete) {
+      continue;
+    }
+
     const existingCompletion = localCompletions.find(
       (c) => c.id === localCompletionId
     );
