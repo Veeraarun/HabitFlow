@@ -10,6 +10,7 @@ import {
   saveHabitFromCloud,
   saveCompletionFromCloud,
   deleteHabitFromCloud,
+  deleteCompletion,
 } from "../db/database";
 
 let isSyncing = false;
@@ -215,6 +216,22 @@ async function processCreateCompletion(operation, userId, localToCloudMap) {
     return { success: false, retryable: true, error: error.message };
   }
 
+  // This create succeeded on the cloud, so remove any
+  // pending delete_completion operations for the same
+  // habit+date with an older createdAt (they are superseded).
+  const sameCompletionOps = await getPendingOperationsForEntity(
+    "completion",
+    `${completion.habitId}-${completion.date}`
+  );
+  for (const op of sameCompletionOps) {
+    if (
+      op.type === "delete_completion" &&
+      op.createdAt < operation.createdAt
+    ) {
+      await removeSyncOperation(op.id);
+    }
+  }
+
   await removeSyncOperation(operation.id);
 
   return { success: true };
@@ -241,21 +258,36 @@ async function processDeleteCompletion(operation, userId, localToCloudMap) {
     return { success: false, retryable: true, deferred: true };
   }
 
-  const localCompletion = await getLocalCompletion(habitId, date, userId);
-  if (localCompletion) {
-    await removeSyncOperation(operation.id);
-    return { success: true, skipped: true };
-  }
+  // Determine if this delete request has been superseded by a newer
+  // create_completion for the same habit + date. When the user's latest
+  // action is "complete", the delete must be dropped even though a local
+  // completion exists.
+  const sameCompletionOps = await getPendingOperationsForEntity(
+    "completion",
+    `${habitId}-${date}`
+  );
+  const supersedingCreate = sameCompletionOps.some(
+    (op) =>
+      op.type === "create_completion" &&
+      String(op.id) !== String(operation.id) &&
+      op.createdAt > operation.createdAt
+  );
 
-  const { error } = await supabase
-    .from("completions")
-    .delete()
-    .eq("habit_id", cloudId)
-    .eq("user_id", userId)
-    .eq("date", date);
+  // A pending delete represents an explicit user action. Even when a local
+  // completion currently exists (e.g. restored by a cloud merge race), we
+  // must still send the deletion to Supabase unless a newer create superseded
+  // it. Simply skipping here would let the cloud merge keep resurrecting it.
+  if (!supersedingCreate) {
+    const { error } = await supabase
+      .from("completions")
+      .delete()
+      .eq("habit_id", cloudId)
+      .eq("user_id", userId)
+      .eq("date", date);
 
-  if (error) {
-    return { success: false, retryable: true, error: error.message };
+    if (error) {
+      return { success: false, retryable: true, error: error.message };
+    }
   }
 
   await removeSyncOperation(operation.id);
@@ -487,8 +519,43 @@ async function mergeCompletionsFromCloud(userId, localToCloudMap) {
     await saveCompletionFromCloud(completion);
   }
 
+  // Clean up stale local completions that no longer exist in Supabase.
+  // Build a set of cloud completion IDs (mapped to local IDs).
+  const cloudCompletionIds = new Set();
+  for (const cloudCompletion of cloudCompletions) {
+    const localHabitId = cloudToLocalHabitMap.get(cloudCompletion.habit_id);
+    if (localHabitId) {
+      cloudCompletionIds.add(`${localHabitId}-${cloudCompletion.date}`);
+    }
+  }
+
+  // Remove local completions that are absent from the cloud,
+  // unless a pending sync operation indicates the cloud has
+  // not yet caught up with an offline action.
+  const localCompletionsToRemove = localCompletions.filter(
+    (c) => !cloudCompletionIds.has(c.id)
+  );
+  for (const localCompletion of localCompletionsToRemove) {
+    // Use safe string comparison for IDs.
+    const pendingOps = await getPendingOperationsForEntity(
+      "completion",
+      localCompletion.id
+    );
+
+    const hasRelevantPendingOp = pendingOps.some(
+      (op) =>
+        op.type === "create_completion" ||
+        op.type === "delete_completion"
+    );
+
+    if (!hasRelevantPendingOp) {
+      await deleteCompletion(localCompletion.habitId, localCompletion.date);
+    }
+  }
+
   return {
     inserted: completionsToInsert.length,
+    removed: localCompletionsToRemove.length,
   };
 }
 

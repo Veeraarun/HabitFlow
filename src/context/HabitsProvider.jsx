@@ -228,8 +228,9 @@ export function HabitsProvider({ children }) {
 
     try {
       if (wasCompleted) {
-        await deleteCompletion(habitId, date);
-
+        // Persist the sync operation BEFORE deleting from IndexedDB.
+        // This prevents syncFromCloud from restoring the completion
+        // from Supabase during the gap between the two operations.
         if (user) {
           await addSyncOperation({
             id: crypto.randomUUID(),
@@ -242,9 +243,13 @@ export function HabitsProvider({ children }) {
             attempts: 0,
           });
         }
-      } else {
-        await saveCompletion(completion);
 
+        await deleteCompletion(habitId, date);
+      } else {
+        // Persist the sync operation BEFORE saving to IndexedDB.
+        // This prevents the cloud-merge cleanup from removing the
+        // completion (because it is not yet in Supabase) during the
+        // gap between the two operations.
         if (user) {
           await addSyncOperation({
             id: crypto.randomUUID(),
@@ -257,6 +262,8 @@ export function HabitsProvider({ children }) {
             attempts: 0,
           });
         }
+
+        await saveCompletion(completion);
       }
     } catch (error) {
       setCompletions((items) =>
