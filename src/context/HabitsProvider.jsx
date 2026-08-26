@@ -11,9 +11,17 @@ import {
   saveCompletion,
   deleteCompletion,
   deleteHabit,
+  addSyncOperation,
 } from "../db/database";
 import { HabitsContext } from "./HabitsContext";
 import { getTodayDate } from "../utils/dates";
+import {
+  processSyncQueue,
+  isSyncActive,
+  syncFromCloud,
+  isCloudSyncActive,
+} from "../services/syncEngine";
+import { useAuth } from "../hooks/useAuth";
 
 export function HabitsProvider({ children }) {
   const [habits, setHabits] = useState([]);
@@ -21,12 +29,15 @@ export function HabitsProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const inFlightKeys = useRef(new Set());
+  const syncTriggeredRef = useRef(false);
 
-  const refreshData = useCallback(async () => {
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  const refreshData = useCallback(async (userId) => {
     try {
       const [storedHabits, storedCompletions] = await Promise.all([
-        getHabits(),
-        getCompletions(),
+        getHabits(userId),
+        getCompletions(userId),
       ]);
 
       setHabits(storedHabits);
@@ -39,34 +50,113 @@ export function HabitsProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    if (isAuthLoading) return;
+
+    if (!user) {
+      setHabits([]);
+      setCompletions([]);
+      setIsLoading(false);
+      syncTriggeredRef.current = false;
+      return;
+    }
+
+    refreshData(user.id);
+  }, [user, isAuthLoading, refreshData]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!user) {
+      syncTriggeredRef.current = false;
+      return;
+    }
+
+    if (syncTriggeredRef.current) return;
+    syncTriggeredRef.current = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        if (!isCloudSyncActive()) {
+          await syncFromCloud();
+          await refreshData(user.id);
+        }
+
+        if (!isSyncActive()) {
+          await processSyncQueue();
+        }
+      } catch (error) {
+        console.error("Initial sync failed:", error);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [user, isAuthLoading, refreshData]);
+
+  useEffect(() => {
+    if (!user || isAuthLoading) return;
+
+    const interval = setInterval(async () => {
+      try {
+        if (!isCloudSyncActive()) {
+          await syncFromCloud();
+          await refreshData(user.id);
+        }
+
+        if (!isSyncActive()) {
+          await processSyncQueue();
+        }
+      } catch (error) {
+        console.error("Periodic sync failed:", error);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user, isAuthLoading, refreshData]);
 
   const addHabit = useCallback(async (habitData) => {
+    const now = new Date().toISOString();
+
     const habit = {
       id: Date.now(),
+      cloudId: null,
+      userId: user?.id || null,
       ...habitData,
       active: true,
       createdAt: getTodayDate(),
+      updatedAt: now,
+      deletedAt: null,
     };
 
     setHabits((items) => [...items, habit]);
 
     try {
       await saveHabit(habit);
+
+      if (user) {
+        await addSyncOperation({
+          id: crypto.randomUUID(),
+          type: "create_habit",
+          entityType: "habit",
+          entityId: String(habit.id),
+          userId: user.id,
+          payload: habit,
+          createdAt: now,
+          attempts: 0,
+        });
+      }
     } catch (error) {
       setHabits((items) => items.filter((item) => item.id !== habit.id));
       console.error("Failed to save new habit:", error);
     }
-  }, []);
+  }, [user]);
 
   const updateHabit = useCallback(async (habitData) => {
     const previousHabits = habits;
+    const now = new Date().toISOString();
 
     setHabits((items) =>
       items.map((habit) =>
         habit.id === habitData.id
-          ? { ...habit, ...habitData }
+          ? { ...habit, ...habitData, updatedAt: now }
           : habit,
       ),
     );
@@ -75,13 +165,27 @@ export function HabitsProvider({ children }) {
       const updated = {
         ...previousHabits.find((habit) => habit.id === habitData.id),
         ...habitData,
+        updatedAt: now,
       };
       await saveHabit(updated);
+
+      if (user) {
+        await addSyncOperation({
+          id: crypto.randomUUID(),
+          type: "update_habit",
+          entityType: "habit",
+          entityId: String(updated.id),
+          userId: user.id,
+          payload: updated,
+          createdAt: now,
+          attempts: 0,
+        });
+      }
     } catch (error) {
       setHabits(previousHabits);
       console.error("Failed to save edited habit:", error);
     }
-  }, [habits]);
+  }, [habits, user]);
 
   const toggleCompletion = useCallback(async (habitId, date) => {
     const completionId = `${habitId}-${date}`;
@@ -92,11 +196,15 @@ export function HabitsProvider({ children }) {
 
     inFlightKeys.current.add(completionId);
 
+    const now = new Date().toISOString();
+
     const completion = {
       id: completionId,
       habitId,
       date,
       completed: true,
+      updatedAt: now,
+      userId: user?.id || null,
     };
 
     const wasCompleted = completions.some(
@@ -112,8 +220,34 @@ export function HabitsProvider({ children }) {
     try {
       if (wasCompleted) {
         await deleteCompletion(habitId, date);
+
+        if (user) {
+          await addSyncOperation({
+            id: crypto.randomUUID(),
+            type: "delete_completion",
+            entityType: "completion",
+            entityId: completionId,
+            userId: user.id,
+            payload: { habitId, date },
+            createdAt: now,
+            attempts: 0,
+          });
+        }
       } else {
         await saveCompletion(completion);
+
+        if (user) {
+          await addSyncOperation({
+            id: crypto.randomUUID(),
+            type: "create_completion",
+            entityType: "completion",
+            entityId: completionId,
+            userId: user.id,
+            payload: completion,
+            createdAt: now,
+            attempts: 0,
+          });
+        }
       }
     } catch (error) {
       setCompletions((items) =>
@@ -125,25 +259,58 @@ export function HabitsProvider({ children }) {
     } finally {
       inFlightKeys.current.delete(completionId);
     }
-  }, [completions]);
+  }, [completions, user]);
 
   const deleteHabitPermanent = useCallback(async (habitId) => {
     const previousHabits = habits;
     const previousCompletions = completions;
+    const now = new Date().toISOString();
+
+    const habitToDelete = habits.find((habit) => habit.id === habitId);
+    const completionsToDelete = completions.filter(
+      (completion) => completion.habitId === habitId,
+    );
 
     setHabits((items) => items.filter((item) => item.id !== habitId));
     setCompletions((items) =>
-      items.filter((item) => item.habitId !== habitId),
+      items.filter((item) => item.habitId === habitId),
     );
 
     try {
       await deleteHabit(habitId);
+
+      if (user) {
+        await addSyncOperation({
+          id: crypto.randomUUID(),
+          type: "delete_habit",
+          entityType: "habit",
+          entityId: String(habitId),
+          userId: user.id,
+          payload: {
+            habit: habitToDelete,
+            completions: completionsToDelete,
+            deletedAt: now,
+          },
+          createdAt: now,
+          attempts: 0,
+        });
+      }
     } catch (error) {
       setHabits(previousHabits);
       setCompletions(previousCompletions);
       console.error("Failed to delete habit:", error);
     }
-  }, [habits, completions]);
+  }, [habits, completions, user]);
+
+  const triggerSync = useCallback(async () => {
+    if (!user || isSyncActive()) return;
+
+    try {
+      await processSyncQueue();
+    } catch (error) {
+      console.error("Manual sync failed:", error);
+    }
+  }, [user]);
 
   const value = {
     habits,
@@ -154,6 +321,7 @@ export function HabitsProvider({ children }) {
     toggleCompletion,
     deleteHabit: deleteHabitPermanent,
     refreshData,
+    triggerSync,
   };
 
   return (

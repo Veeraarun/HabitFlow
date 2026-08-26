@@ -1,8 +1,9 @@
 const DB_NAME = "habitflow";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const HABITS_STORE = "habits";
 const COMPLETIONS_STORE = "completions";
 const REMINDERS_STORE = "reminders";
+const SYNC_QUEUE_STORE = "sync_queue";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -45,6 +46,20 @@ function openDatabase() {
         });
       }
 
+      if (!db.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+        const store = db.createObjectStore(SYNC_QUEUE_STORE, {
+          keyPath: "id",
+        });
+
+        store.createIndex("type", "type", {
+          unique: false,
+        });
+
+        store.createIndex("createdAt", "createdAt", {
+          unique: false,
+        });
+      }
+
       // Version 3 makes completion records the only completion source of truth.
       // Updating records in place preserves IDs and leaves the completions store
       // completely untouched. The migration is also safe for already-migrated data.
@@ -81,7 +96,7 @@ function openDatabase() {
   });
 }
 
-export async function getHabits() {
+export async function getHabits(userId) {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
@@ -94,7 +109,12 @@ export async function getHabits() {
     const request = store.getAll();
 
     request.onsuccess = () => {
-      resolve(request.result);
+      const habits = request.result;
+      if (userId) {
+        resolve(habits.filter((h) => h.userId === userId));
+      } else {
+        resolve(habits.filter((h) => !h.userId));
+      }
     };
 
     request.onerror = () => {
@@ -199,7 +219,7 @@ export async function saveCompletion(completion) {
   });
 }
 
-export async function getCompletions() {
+export async function getCompletions(userId) {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
@@ -215,7 +235,12 @@ export async function getCompletions() {
     const request = store.getAll();
 
     request.onsuccess = () => {
-      resolve(request.result);
+      const completions = request.result;
+      if (userId) {
+        resolve(completions.filter((c) => c.userId === userId));
+      } else {
+        resolve(completions.filter((c) => !c.userId));
+      }
     };
 
     request.onerror = () => {
@@ -300,6 +325,256 @@ export async function saveReminderRecord(record) {
 
     transaction.onerror = () => {
       reject(transaction.error);
+    };
+  });
+}
+
+export async function addSyncOperation(operation) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+
+    store.put(operation);
+
+    transaction.oncomplete = () => {
+      resolve(operation);
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+  });
+}
+
+export async function getSyncOperations() {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readonly"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
+export async function removeSyncOperation(id) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+
+    store.delete(id);
+
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+  });
+}
+
+export async function updateSyncOperation(id, updates) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result;
+
+      if (!existing) {
+        reject(new Error(`Sync operation ${id} not found`));
+        return;
+      }
+
+      const updated = { ...existing, ...updates };
+
+      store.put(updated);
+
+      transaction.oncomplete = () => {
+        resolve(updated);
+      };
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+  });
+}
+
+export async function clearSyncOperations(userId) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+
+    if (userId) {
+      const request = store.openCursor();
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          if (cursor.value.userId === userId) {
+            cursor.delete();
+          }
+          cursor.continue();
+        }
+      };
+    } else {
+      store.clear();
+    }
+  });
+}
+
+export async function getPendingOperationsForEntity(entityType, entityId) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      SYNC_QUEUE_STORE,
+      "readonly"
+    );
+
+    const store = transaction.objectStore(SYNC_QUEUE_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const operations = request.result;
+      const pending = operations.filter(
+        (op) =>
+          op.entityType === entityType &&
+          op.entityId === String(entityId)
+      );
+      resolve(pending);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
+export async function saveHabitFromCloud(habit) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      HABITS_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(HABITS_STORE);
+
+    store.put(habit);
+
+    transaction.oncomplete = () => {
+      resolve(habit);
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+  });
+}
+
+export async function saveCompletionFromCloud(completion) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      COMPLETIONS_STORE,
+      "readwrite"
+    );
+
+    const store = transaction.objectStore(COMPLETIONS_STORE);
+
+    store.put(completion);
+
+    transaction.oncomplete = () => {
+      resolve(completion);
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+  });
+}
+
+export async function deleteHabitFromCloud(localId) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      [HABITS_STORE, COMPLETIONS_STORE],
+      "readwrite"
+    );
+
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+
+    const habitsStore = transaction.objectStore(HABITS_STORE);
+    habitsStore.delete(localId);
+
+    const completionsStore = transaction.objectStore(COMPLETIONS_STORE);
+    const completionsCursor = completionsStore
+      .index("habitId")
+      .openCursor(IDBKeyRange.only(localId));
+
+    completionsCursor.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
     };
   });
 }
