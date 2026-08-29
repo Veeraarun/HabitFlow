@@ -189,15 +189,9 @@ async function processCreateCompletion(operation, userId, localToCloudMap) {
     return { success: false, retryable: true, deferred: true };
   }
 
-  const localCompletion = await getLocalCompletion(
-    completion.habitId,
-    completion.date,
-    userId
-  );
-  if (!localCompletion) {
-    await removeSyncOperation(operation.id);
-    return { success: true, skipped: true };
-  }
+  // Use the operation payload as authoritative source for cloud write
+  const dateStr = completion.date;
+  const updatedAtStr = completion.updatedAt || operation.createdAt || new Date().toISOString();
 
   const { error } = await supabase
     .from("completions")
@@ -205,9 +199,9 @@ async function processCreateCompletion(operation, userId, localToCloudMap) {
       {
         user_id: userId,
         habit_id: cloudId,
-        date: completion.date,
-        created_at: completion.updatedAt,
-        updated_at: completion.updatedAt,
+        date: dateStr,
+        created_at: updatedAtStr,
+        updated_at: updatedAtStr,
       },
       { onConflict: "user_id,habit_id,date" }
     );
@@ -216,20 +210,21 @@ async function processCreateCompletion(operation, userId, localToCloudMap) {
     return { success: false, retryable: true, error: error.message };
   }
 
-  // This create succeeded on the cloud, so remove any
-  // pending delete_completion operations for the same
-  // habit+date with an older createdAt (they are superseded).
-  const sameCompletionOps = await getPendingOperationsForEntity(
-    "completion",
-    `${completion.habitId}-${completion.date}`
+  // Ensure local completion is present in IndexedDB after cloud upsert succeeds
+  const localCompletion = await getLocalCompletion(
+    completion.habitId,
+    completion.date,
+    userId
   );
-  for (const op of sameCompletionOps) {
-    if (
-      op.type === "delete_completion" &&
-      op.createdAt < operation.createdAt
-    ) {
-      await removeSyncOperation(op.id);
-    }
+  if (!localCompletion) {
+    await saveCompletionFromCloud({
+      id: `${completion.habitId}-${completion.date}`,
+      habitId: completion.habitId,
+      date: completion.date,
+      completed: true,
+      updatedAt: updatedAtStr,
+      userId: userId,
+    });
   }
 
   await removeSyncOperation(operation.id);
@@ -250,44 +245,21 @@ async function processDeleteCompletion(operation, userId, localToCloudMap) {
   let cloudId = localHabit.cloudId || localToCloudMap.get(habitId);
 
   if (!cloudId) {
-    const localCompletion = await getLocalCompletion(habitId, date, userId);
-    if (localCompletion) {
-      await removeSyncOperation(operation.id);
-      return { success: true, skipped: true };
-    }
     return { success: false, retryable: true, deferred: true };
   }
 
-  // Determine if this delete request has been superseded by a newer
-  // create_completion for the same habit + date. When the user's latest
-  // action is "complete", the delete must be dropped even though a local
-  // completion exists.
-  const sameCompletionOps = await getPendingOperationsForEntity(
-    "completion",
-    `${habitId}-${date}`
-  );
-  const supersedingCreate = sameCompletionOps.some(
-    (op) =>
-      op.type === "create_completion" &&
-      String(op.id) !== String(operation.id) &&
-      op.createdAt > operation.createdAt
-  );
+  // A pending delete_completion represents an explicit user action.
+  // Delete from Supabase regardless of whether a local completion
+  // currently exists.
+  const { error } = await supabase
+    .from("completions")
+    .delete()
+    .eq("habit_id", cloudId)
+    .eq("user_id", userId)
+    .eq("date", date);
 
-  // A pending delete represents an explicit user action. Even when a local
-  // completion currently exists (e.g. restored by a cloud merge race), we
-  // must still send the deletion to Supabase unless a newer create superseded
-  // it. Simply skipping here would let the cloud merge keep resurrecting it.
-  if (!supersedingCreate) {
-    const { error } = await supabase
-      .from("completions")
-      .delete()
-      .eq("habit_id", cloudId)
-      .eq("user_id", userId)
-      .eq("date", date);
-
-    if (error) {
-      return { success: false, retryable: true, error: error.message };
-    }
+  if (error) {
+    return { success: false, retryable: true, error: error.message };
   }
 
   await removeSyncOperation(operation.id);
@@ -465,16 +437,32 @@ async function mergeCompletionsFromCloud(userId, localToCloudMap) {
 
     const localCompletionId = `${localHabitId}-${cloudCompletion.date}`;
 
-    // If there is a pending delete operation for this completion, do not restore/update it from the cloud
-    const pendingOpsForDelete = await getPendingOperationsForEntity(
+    // Unified pending ops check: find the NEWEST pending operation for
+    // this completion key. The user's latest action determines behavior.
+    const pendingOpsForCompletion = await getPendingOperationsForEntity(
       "completion",
       localCompletionId
     );
-    const hasPendingDelete = pendingOpsForDelete.some(
-      (op) => op.type === "delete_completion"
-    );
-    if (hasPendingDelete) {
-      continue;
+
+    let newestPendingOp = null;
+    for (const op of pendingOpsForCompletion) {
+      const timeOp = new Date(op.createdAt).getTime();
+      const timeNewest = newestPendingOp ? new Date(newestPendingOp.createdAt).getTime() : 0;
+      if (!newestPendingOp || timeOp > timeNewest || (timeOp === timeNewest && op.id > newestPendingOp.id)) {
+        newestPendingOp = op;
+      }
+    }
+
+    if (newestPendingOp) {
+      if (newestPendingOp.type === "delete_completion") {
+        // User's latest action is delete → do not restore the cloud record
+        continue;
+      }
+      if (newestPendingOp.type === "create_completion") {
+        // User's latest action is create → skip the cloud record;
+        // the pending create will be sent when processSyncQueue runs
+        continue;
+      }
     }
 
     const existingCompletion = localCompletions.find(
@@ -482,19 +470,6 @@ async function mergeCompletionsFromCloud(userId, localToCloudMap) {
     );
 
     if (existingCompletion) {
-      const pendingOps = await getPendingOperationsForEntity(
-        "completion",
-        existingCompletion.id
-      );
-
-      const hasPendingLocalChange = pendingOps.some(
-        (op) => op.type === "create_completion"
-      );
-
-      if (hasPendingLocalChange) {
-        continue;
-      }
-
       if (
         isTimestampNewer(cloudCompletion.updated_at, existingCompletion.updatedAt)
       ) {
@@ -536,21 +511,33 @@ async function mergeCompletionsFromCloud(userId, localToCloudMap) {
     (c) => !cloudCompletionIds.has(c.id)
   );
   for (const localCompletion of localCompletionsToRemove) {
-    // Use safe string comparison for IDs.
+    // Unified pending ops check: find the NEWEST pending operation for
+    // this completion key. Only protect the local completion when the
+    // user's latest action is "create" (cloud hasn't caught up yet).
     const pendingOps = await getPendingOperationsForEntity(
       "completion",
       localCompletion.id
     );
 
-    const hasRelevantPendingOp = pendingOps.some(
-      (op) =>
-        op.type === "create_completion" ||
-        op.type === "delete_completion"
-    );
-
-    if (!hasRelevantPendingOp) {
-      await deleteCompletion(localCompletion.habitId, localCompletion.date);
+    let newestPendingOp = null;
+    for (const op of pendingOps) {
+      const timeOp = new Date(op.createdAt).getTime();
+      const timeNewest = newestPendingOp ? new Date(newestPendingOp.createdAt).getTime() : 0;
+      if (!newestPendingOp || timeOp > timeNewest || (timeOp === timeNewest && op.id > newestPendingOp.id)) {
+        newestPendingOp = op;
+      }
     }
+
+    if (newestPendingOp && newestPendingOp.type === "create_completion") {
+      // User's latest action is create → preserve local completion.
+      // The pending create will be sent to cloud when processSyncQueue runs.
+      continue;
+    }
+
+    // Remove local completion if:
+    // - No pending ops (cloud no longer has it)
+    // - Newest pending op is delete_completion (user's latest action was delete)
+    await deleteCompletion(localCompletion.habitId, localCompletion.date);
   }
 
   return {
@@ -630,11 +617,67 @@ export async function processSyncQueue() {
     const operations = allOperations.filter(
       (op) => op.userId === currentUserId
     );
-    operations.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // Sort all loaded operations by actual date object
+    operations.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return a.id.localeCompare(b.id); // Deterministic fallback
+    });
 
     const operationsByType = new Map();
 
+    // Coalesce completion operations: for each unique completion key
+    // (entityId = habitId + "-" + date), keep only the NEWEST operation.
+    // Older ones are superseded by the user's latest action.
+    const newestCompletionByKey = new Map();
+    const supersededCompletionOps = [];
+
     for (const op of operations) {
+      if (
+        op.type === "create_completion" ||
+        op.type === "delete_completion"
+      ) {
+        const key = String(op.entityId);
+        const existing = newestCompletionByKey.get(key);
+        const timeOp = new Date(op.createdAt).getTime();
+        const timeExisting = existing ? new Date(existing.createdAt).getTime() : 0;
+
+        if (!existing || timeOp > timeExisting || (timeOp === timeExisting && op.id > existing.id)) {
+          if (existing) {
+            supersededCompletionOps.push(existing);
+          }
+          newestCompletionByKey.set(key, op);
+        } else {
+          supersededCompletionOps.push(op);
+        }
+      }
+    }
+
+    // Remove superseded completion operations from IndexedDB
+    for (const op of supersededCompletionOps) {
+      try {
+        await removeSyncOperation(op.id);
+      } catch {
+        // Ignore individual removal failures
+      }
+    }
+
+    // Build operationsByType with superseded ops filtered out
+    for (const op of operations) {
+      if (
+        op.type === "create_completion" ||
+        op.type === "delete_completion"
+      ) {
+        const key = String(op.entityId);
+        const newest = newestCompletionByKey.get(key);
+        if (newest && String(newest.id) !== String(op.id)) {
+          continue; // superseded, skip
+        }
+      }
+
       if (!operationsByType.has(op.type)) {
         operationsByType.set(op.type, []);
       }
