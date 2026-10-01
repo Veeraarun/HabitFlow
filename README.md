@@ -84,7 +84,9 @@ HabitFlow demonstrates:
 
 ## 🌐 Live Demo
 
-**Coming soon.**
+🚀 **[Open HabitFlow Live](https://myhabix.vercel.app/)**
+
+Deployed with **Vercel**.
 
 ## 👨‍💻 Author
 
