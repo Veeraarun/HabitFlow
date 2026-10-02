@@ -1,100 +1,141 @@
 # HabitFlow 🌱
 
-A modern, minimal and local-first habit tracker built with **React + Vite**. HabitFlow helps users build consistent habits, track progress, monitor streaks, and understand their performance through simple visual insights.
+A modern habit-tracking web application built with **React + Vite**. HabitFlow is designed around a simple dashboard experience for creating habits, tracking completion, reviewing progress, and building consistent routines.
+
+## 🌐 Live Demo
+
+🚀 **[Open HabitFlow](https://myhabix.vercel.app/)**
 
 ## ✨ Features
 
-- 📅 Daily habit tracking
-- 📊 Weekly progress tracking
-- 🗓️ Monthly calendar view
-- 📈 Monthly completion graph
-- 🔥 Habit streak tracking
-- 📊 Statistics and performance insights
-- 🔔 Habit reminder notifications
-- 📱 Responsive interface
-- ⚡ Offline/PWA support
-- 💾 Local data persistence using IndexedDB
-- 🔒 No account required
+- Daily habit management.
+- Weekly progress view.
+- Monthly calendar view.
+- Statistics and progress insights.
+- Habit streak tracking.
+- Habit reminders and browser notifications.
+- Responsive desktop/mobile navigation.
+- Online/offline status awareness.
+- Progressive Web App support.
+- Local-first browser data handling.
+- Optional Supabase integration.
+- No traditional server is required for the core frontend experience.
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React
-- **Build Tool:** Vite
-- **Styling:** Tailwind CSS
-- **Storage:** IndexedDB
-- **PWA:** vite-plugin-pwa / Service Worker
-- **Notifications:** Browser Notifications API
+- **React 19**
+- **Vite**
+- **Tailwind CSS 4**
+- **IndexedDB / browser storage**
+- **Supabase JS**
+- **vite-plugin-pwa**
+- **Browser Notifications API**
+- **Oxlint**
 
-## 🧠 How It Works
+## 🏗️ Architecture
 
-HabitFlow follows a local-first architecture. Habit data and completion history are stored directly in the user's browser using IndexedDB, allowing the application to work without requiring a backend or user account.
+HabitFlow uses React providers and page-level views to keep application state and UI concerns separated.
 
-The application provides Daily, Weekly, Monthly, and Statistics views for managing habits and understanding progress.
+```text
+App
+├── AuthProvider
+├── HabitsProvider
+└── Pages
+    ├── Today
+    ├── Weekly
+    ├── Monthly
+    ├── Statistics
+    └── Settings
+```
+
+A reminder scheduler runs from the application lifecycle and is stopped when the app is unmounted.
+
+## 📁 Project Structure
+
+```text
+HabitFlow/
+├── src/
+│   ├── pages/               # Main application views
+│   ├── components/          # Reusable UI components
+│   ├── context/             # Authentication and habit state
+│   ├── hooks/               # Reusable React hooks
+│   ├── services/            # Persistence and reminder logic
+│   └── App.jsx              # Main application shell
+├── public/                  # Static/PWA assets
+├── .env.example             # Environment variable template
+├── package.json
+├── vite.config.js
+└── README.md
+```
 
 ## 🚀 Getting Started
 
-### Clone the repository
+### Prerequisites
+
+- Node.js
+- npm
+
+### Install
 
 ```bash
 git clone https://github.com/Veeraarun/HabitFlow.git
 cd HabitFlow
-```
-
-### Install dependencies
-
-```bash
 npm install
 ```
 
-### Start the development server
+### Development
 
 ```bash
 npm run dev
 ```
 
-### Build for production
+### Production Build
 
 ```bash
 npm run build
 ```
 
-## 📁 Project Architecture
+### Preview Production Build
 
-- **HabitsProvider / React Context** — Shared application state
-- **IndexedDB** — Persistent local storage
-- **Daily / Weekly / Monthly views** — Habit and progress management
-- **Statistics** — Performance and completion insights
-- **Reminder system** — Browser notifications and service-worker support
+```bash
+npm run preview
+```
 
-## 🔐 Privacy
+### Lint
 
-HabitFlow is designed as a **local-first application**. Habit data, completion history and reminder records are stored locally in the browser. No account or backend is required.
+```bash
+npm run lint
+```
 
-## 🎯 Project Goals
+## 🔐 Environment Variables
 
-HabitFlow demonstrates:
+If you use the optional external services configured by the project, copy the example file:
 
-- React component development
-- State management with React Context
-- Responsive UI development
-- IndexedDB browser storage
-- Progressive Web App functionality
-- Browser notifications
-- Data visualization and dashboard-style interfaces
+```bash
+cp .env.example .env
+```
 
-## 🌐 Live Demo
+Never commit real credentials to GitHub.
 
-🚀 **[Open HabitFlow Live](https://myhabix.vercel.app/)**
+## 📱 PWA
 
-Deployed with **Vercel**.
+HabitFlow includes PWA support so the application can behave more like an installable app and continue to provide an app-like experience on supported browsers.
 
-## 👨‍💻 Author
+## 🎯 What This Project Demonstrates
 
-**Veera Arun**
+- React component architecture.
+- Context-based state management.
+- Browser persistence.
+- Responsive dashboard UI.
+- PWA configuration.
+- Reminder scheduling.
+- Offline/online UX.
+- Data-driven progress views.
 
-- GitHub: https://github.com/Veeraarun
-- Repository: https://github.com/Veeraarun/HabitFlow
+## 📌 Project Status
 
----
+Active personal project and full-stack learning portfolio project.
 
-⭐ If you find HabitFlow useful, consider giving the repository a star!
+## 👤 Author
+
+**Veera Arun** — [GitHub](https://github.com/Veeraarun)
